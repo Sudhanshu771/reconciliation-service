@@ -21,6 +21,7 @@ public record ReconciliationReport(
         List<Line> results) {
 
     public record Line(
+            UUID id,                       // NEW: the result line's id (needed to ask the AI about it)
             MatchStatus status,
             String reference,
             UUID expectedPaymentId,
@@ -30,7 +31,7 @@ public record ReconciliationReport(
             BigDecimal difference) {
 
         static Line from(ReconciliationResult r) {
-            return new Line(r.getStatus(), r.getReference(), r.getExpectedPaymentId(),
+            return new Line(r.getId(), r.getStatus(), r.getReference(), r.getExpectedPaymentId(),
                     r.getBankTxnId(), r.getExpectedAmount(), r.getBankAmount(), r.getDifference());
         }
     }

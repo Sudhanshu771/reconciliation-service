@@ -11,6 +11,8 @@ import com.payrecon.reconciliation.repository.BankTransactionRepository;
 import com.payrecon.reconciliation.repository.ExpectedPaymentRepository;
 import com.payrecon.reconciliation.repository.ReconciliationResultRepository;
 import com.payrecon.reconciliation.repository.ReconciliationRunRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +26,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class ReconciliationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReconciliationService.class);
 
     // Bank statements in India use Indian dates, so we compare dates in IST
     private static final ZoneId BANK_ZONE = ZoneId.of("Asia/Kolkata");
@@ -57,13 +62,28 @@ public class ReconciliationService {
                     "No bank statement found with id " + statementId);
         }
 
-        // 2. Load our side and group it by reference:
-        //    "INV-90018" -> [payment1, payment2, payment3, payment4]
-        //    (simple version: ALL expected payments; a real system would limit it to a date range)
+        // 2. Load our side — but only payments that could belong to THIS statement:
+        //    a) not already claimed by ANOTHER statement (its latest run matched them) → no double counting
+        //    b) not made AFTER the statement's last date → can't be on this statement yet
+        Set<UUID> claimedElsewhere = resultRepo.findPaymentsClaimedByOtherStatements(
+                statementId, List.of(MatchStatus.MATCHED, MatchStatus.AMOUNT_MISMATCH));
+        LocalDate statementEnd = bankLines.stream()
+                .map(BankTransaction::getValueDate)
+                .max(Comparator.naturalOrder())
+                .orElseThrow();
+
+        //    Then group them by reference: "INV-90018" -> [payment1, payment2, ...]
         Map<String, List<ExpectedPayment>> unmatchedByRef = new HashMap<>();
+        int skipped = 0;
         for (ExpectedPayment p : expectedRepo.findAll()) {
+            if (claimedElsewhere.contains(p.getPaymentId()) || paidOn(p).isAfter(statementEnd)) {
+                skipped++;
+                continue;
+            }
             unmatchedByRef.computeIfAbsent(p.getReference(), ref -> new ArrayList<>()).add(p);
         }
+        log.info("Reconciling statement {}: {} bank lines, {} payments skipped (matched elsewhere or after {})",
+                statementId, bankLines.size(), skipped, statementEnd);
 
         ReconciliationRun run = runRepo.save(new ReconciliationRun(statementId));
         List<ReconciliationResult> results = new ArrayList<>();
@@ -138,7 +158,11 @@ public class ReconciliationService {
     }
 
     private long daysApart(ExpectedPayment p, LocalDate bankDate) {
-        LocalDate paidOn = p.getCreatedAt().atZone(BANK_ZONE).toLocalDate();
-        return Math.abs(ChronoUnit.DAYS.between(paidOn, bankDate));
+        return Math.abs(ChronoUnit.DAYS.between(paidOn(p), bankDate));
+    }
+
+    // The payment's date as an Indian calendar date (bank statements are in IST)
+    private static LocalDate paidOn(ExpectedPayment p) {
+        return p.getCreatedAt().atZone(BANK_ZONE).toLocalDate();
     }
 }

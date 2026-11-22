@@ -1,5 +1,6 @@
 package com.payrecon.reconciliation.service;
 
+import com.payrecon.reconciliation.dto.StatementSummary;
 import com.payrecon.reconciliation.dto.StatementUploadResult;
 import com.payrecon.reconciliation.model.BankTransaction;
 import com.payrecon.reconciliation.repository.BankTransactionRepository;
@@ -27,6 +28,11 @@ public class StatementService {
 
     public StatementService(BankTransactionRepository repository) {
         this.repository = repository;
+    }
+
+    // NEW: list of uploaded statements (for the dashboard's Statements page)
+    public List<StatementSummary> list() {
+        return repository.summarizeStatements();
     }
 
     public StatementUploadResult upload(MultipartFile file) {

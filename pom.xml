@@ -28,8 +28,28 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+		<spring-ai.version>2.1.0</spring-ai.version>
 	</properties>
+
+	<!-- The Spring AI "BOM" picks matching versions for all spring-ai-* libraries -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
+		<!-- Spring AI + OpenAI: gives us a ready-made ChatClient (like KafkaTemplate, but for an AI model) -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-openai</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -45,6 +65,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<!-- Checks the JWT issued by payment-service on every request -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
 		</dependency>
 
 		<dependency>
