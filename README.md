@@ -88,10 +88,12 @@ Errors use `ProblemDetail` (RFC 9457): 400 bad input · 401 no/invalid token · 
 ```
 The API runs at `http://localhost:8081`.
 
-Run the unit tests for the matching rules:
+Run the unit tests for the matching rules (no database or Kafka needed):
 ```powershell
 .\mvnw.cmd test -Dtest=ReconciliationServiceTest
 ```
+
+> `mvnw` uses `JAVA_HOME`, which must point to **JDK 17+**. Running from IntelliJ uses the project SDK instead.
 
 ### Configuration (environment variables)
 | Variable | Purpose | Default |
